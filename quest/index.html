@@ -26,6 +26,8 @@ input{width:100%;background:#0f1912;border:1px solid var(--gold);color:var(--cre
 #card{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;background:linear-gradient(180deg,#1b2b20,#111a14);border:1px solid #c9a86055;border-bottom:0;border-radius:26px 26px 0 0;padding:10px 14px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;box-shadow:0 -12px 40px #000c;display:none;animation:up .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes up{from{transform:translateY(100%)}}
 .grab{width:44px;height:5px;border-radius:3px;background:#3c5243;margin:0 auto 10px}
+.x{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#0f1912;color:var(--cream);font-size:16px;line-height:30px;padding:0;z-index:2}
+.head{padding-right:40px}
 .head{display:flex;justify-content:space-between;align-items:baseline;margin:2px 2px 10px}.head b{font-family:Georgia,serif;color:var(--gold);font-size:16px}.head span{font-size:12px;color:var(--muted)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .qt{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 6px 11px;color:var(--cream);font:inherit;text-align:center;min-height:108px;transition:transform .12s,background .2s,border-color .2s;user-select:none}
@@ -46,7 +48,7 @@ input{width:100%;background:#0f1912;border:1px solid var(--gold);color:var(--cre
 </style></head><body>
 <div id="splash"><img src="icon-192.png" alt=""><span>Opening your quest log…</span></div>
 <iframe id="app" credentialless allow="clipboard-write" title="Quest Log"></iframe>
-<div id="dim"><div class="hint">swipe the app away when you're done</div></div>
+<div id="dim"><div class="hint">tap here or ✕ to close</div></div>
 <div id="card"></div>
 <div id="toast"></div>
 <div id="setup">
@@ -84,7 +86,9 @@ function openFull() {
 }
 
 /* ---------- instant cards ---------- */
-var C = null, queue = [], busy = false, diff = 'Easy';
+var QKEY = 'questQueue', C = null, queue = [], busy = false, diff = 'Easy', leaving = false;
+try { queue = JSON.parse(ls(QKEY) || '[]'); } catch (e) { queue = []; }
+function saveQ() { ls(QKEY, JSON.stringify(queue.filter(function (j) { return j.p.api !== 'state'; }))); }
 try { C = JSON.parse(ls(CKEY) || 'null'); } catch (e) {}
 function fresh() { // cache from another day: same quests, nothing done yet
   if (C && C.day !== today()) { C.day = today(); C.quests.forEach(function (x) { x.value = x.goal > 1 ? 0 : false; }); }
@@ -92,24 +96,24 @@ function fresh() { // cache from another day: same quests, nothing done yet
 function save() { ls(CKEY, JSON.stringify(C)); }
 function api(params) {
   var u = URL0 + '?' + new URLSearchParams(Object.assign({d: today(), tz: TZ}, params));
-  return fetch(u, {credentials: 'omit'}).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error); return j; });
+  return fetch(u, {credentials: 'omit', keepalive: true}).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error); return j; });
 }
 function pump() {
   if (busy || !queue.length) return;
   busy = true; sync(queue[0].p.api === 'state' ? 'syncing…' : 'saving…');
-  var job = queue.shift();
+  var job = queue[0];
   api(job.p).then(function (j) {
-    busy = false;
-    if (!queue.length) { C = j; save(); if (VIEW === 'side') { var sp = document.querySelector('.head span'); if (sp) sp.textContent = C.sideOpen + ' open'; } else render(); sync('✓ saved to your sheet'); }
+    busy = false; queue.shift(); saveQ();
+    if (!queue.length) { C = j; save(); if (leaving) { reset(); return; } if (VIEW === 'side') { var sp = document.querySelector('.head span'); if (sp) sp.textContent = C.sideOpen + ' open'; } else render(); sync('✓ saved to your sheet'); }
     pump();
   }).catch(function () {
-    busy = false; queue.unshift(job); sync('offline — will retry'); setTimeout(pump, 4000);
+    busy = false; sync('offline — will retry'); setTimeout(pump, 4000);
   });
 }
 function sync(t) { var s = $('sync'); if (s) s.textContent = t; }
 function isDone(x) { return x.goal > 1 ? Number(x.value) >= x.goal : x.value === true; }
 function render() {
-  var c = $('card'), h = '<div class="grab"></div>';
+  var c = $('card'), h = '<button class="x" id="close" aria-label="Close">✕</button><div class="grab"></div>';
   if (VIEW === 'side') {
     h += '<div class="head"><b>✦ New side quest</b><span>' + (C ? C.sideOpen + ' open' : '') + '</span></div>' +
       '<input id="sqn" placeholder="e.g. Repot the monstera" maxlength="120" enterkeyhint="done" autocomplete="off">' +
@@ -135,6 +139,7 @@ function render() {
 }
 function bind() {
   $('full').onclick = function () { VIEW = ''; openFull(); };
+  $('close').onclick = closeApp;
   document.querySelectorAll('.qt').forEach(function (el) {
     el.onclick = function (ev) {
       if (ev.target.dataset.m !== undefined) return;
@@ -143,13 +148,13 @@ function bind() {
       else v = !(x.value === true);
       x.value = v; save(); render();
       if (!was && isDone(x)) { sparks(ev); toast('+' + x.xp + ' XP ✦ ' + x.name); } else if (x.goal > 1) toast(x.icon + ' ' + v + ' / ' + x.goal);
-      queue.push({p: {api: 'quest', k: x.k, v: String(v)}}); pump();
+      queue.push({p: {api: 'quest', k: x.k, v: String(v)}}); saveQ(); pump();
     };
   });
   document.querySelectorAll('[data-m]').forEach(function (b) {
     b.onclick = function () {
       var x = C.quests.filter(function (y) { return y.k == b.dataset.m; })[0], v = Math.max(0, Number(x.value || 0) - 1);
-      x.value = v; save(); render(); queue.push({p: {api: 'quest', k: x.k, v: String(v)}}); pump();
+      x.value = v; save(); render(); queue.push({p: {api: 'quest', k: x.k, v: String(v)}}); saveQ(); pump();
     };
   });
   document.querySelectorAll('[data-d]').forEach(function (b) { b.onclick = function () { diff = b.dataset.d; render(); $('sqn').focus(); }; });
@@ -159,7 +164,7 @@ function bind() {
       var n = $('sqn').value.trim(); if (!n) { $('sqn').focus(); return; }
       sparks(ev); toast('Added ✦ ' + n); if (C) C.sideOpen++;
       $('sqn').value = ''; render(); $('sqn').focus();
-      queue.push({p: {api: 'side', n: n, diff: diff}}); pump();
+      queue.push({p: {api: 'side', n: n, diff: diff}}); saveQ(); pump();
     };
     add.onclick = go; $('sqn').onkeydown = function (e) { if (e.key === 'Enter') go(); };
   }
@@ -175,7 +180,25 @@ function sparks(ev) {
   }
   if (navigator.vibrate) navigator.vibrate(12);
 }
+function pending() { return queue.filter(function (j) { return j.p.api !== 'state'; }).length; }
+function reset() { location.replace(location.pathname); } // next time the icon opens the full app
+function closeApp() {
+  if (pending()) { sync('saving before closing…'); var t0 = Date.now(); var w = setInterval(function () { if (!pending() || Date.now() - t0 > 8000) { clearInterval(w); closeApp(); } }, 200); return; }
+  var c = $('card'); c.style.transition = 'transform .2s'; c.style.transform = 'translateY(100%)';
+  setTimeout(function () {
+    try { window.close(); } catch (e) {}
+    setTimeout(function () { c.style.transform = ''; toast('Done ✦ press Home to leave'); }, 350);
+  }, 180);
+}
+function dragClose() {
+  var c = $('card'), y0 = null, dy = 0;
+  c.addEventListener('touchstart', function (e) { if (c.scrollTop > 0 || e.target.tagName === 'INPUT') return; y0 = e.touches[0].clientY; dy = 0; c.style.transition = 'none'; }, {passive: true});
+  c.addEventListener('touchmove', function (e) { if (y0 === null) return; dy = Math.max(0, e.touches[0].clientY - y0); c.style.transform = 'translateY(' + dy + 'px)'; }, {passive: true});
+  c.addEventListener('touchend', function () { if (y0 === null) return; y0 = null; c.style.transition = 'transform .2s'; if (dy > 110) closeApp(); else c.style.transform = ''; });
+  $('dim').onclick = closeApp;
+}
 function openCard() {
+  dragClose();
   fresh();
   $('dim').style.display = 'block'; $('card').style.display = 'block'; render();
   if (VIEW === 'side') setTimeout(function () { $('sqn') && $('sqn').focus(); }, 80);
@@ -193,7 +216,11 @@ function setup() {
 if (!URL0 || q.has('setup')) setup();
 else if (VIEW === 'quick' || VIEW === 'side') openCard();
 else openFull();
-document.addEventListener('visibilitychange', function () { if (!document.hidden && $('card').style.display === 'block') { fresh(); render(); queue.push({p: {api: 'state'}}); pump(); } });
+document.addEventListener('visibilitychange', function () {
+  if ($('card').style.display !== 'block') return;
+  if (document.hidden) { leaving = true; if (!pending() && !busy) reset(); } else leaving = false;
+});
+if (VIEW !== 'quick' && VIEW !== 'side' && URL0 && queue.length) pump(); // send taps left over from last time
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
 </body></html>
