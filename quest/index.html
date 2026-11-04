@@ -19,7 +19,9 @@ input{width:100%;background:#0f1912;border:1px solid var(--gold);color:var(--cre
 .err{color:#f3a0a0;font-size:13px;min-height:18px;margin-top:6px}
 #splash{position:fixed;inset:0;z-index:6;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;pointer-events:none;transition:opacity .5s;background:radial-gradient(ellipse at 50% 40%,#1a2a1f 0%,#0b120d 70%)}
 #splash .grow{position:relative;width:120px;height:150px;display:flex;align-items:flex-end;justify-content:center}
-#splash .grow img{position:absolute;bottom:0;height:150px;opacity:0;transition:opacity .35s}#splash .grow img.on{opacity:1}
+#splash .grow img{position:absolute;bottom:0;height:150px;opacity:0;animation:fr 2.52s infinite steps(1)}
+@keyframes fr{0%{opacity:1}16.66%{opacity:0}100%{opacity:0}}
+html,body,#app,#card{touch-action:manipulation}
 #splash .grow:after{content:'';position:absolute;bottom:-8px;width:120px;height:16px;border-radius:50%;background:radial-gradient(#f0c96a55,transparent 70%);animation:gl 2.4s ease-in-out infinite}
 @keyframes gl{50%{opacity:.25}}
 #splash span{font-style:italic;color:#e7d9b5;font-family:Georgia,serif;font-size:17px}
@@ -94,9 +96,7 @@ function openFull() {
 /* a little mushroom grows while the app loads; the app says when it's ready */
 function growAnim() {
   var g = $('grow');
-  if (!g.children.length) for (var i = 0; i < 6; i++) { var im = document.createElement('img'); im.src = '../art/grow' + i + '.png'; im.alt = ''; g.appendChild(im); }
-  clearInterval(growAnim.t); var n = 0, ims = g.children; for (var j = 0; j < 6; j++) ims[j].className = ''; ims[0].className = 'on';
-  growAnim.t = setInterval(function () { ims[n].className = ''; n = n === 5 ? 0 : n + 1; ims[n].className = 'on'; }, 420);
+  if (!g.children.length) for (var i = 0; i < 6; i++) { var im = document.createElement('img'); im.src = '../art/grow' + i + '.png'; im.alt = ''; im.style.animationDelay = (i * 0.42) + 's'; g.appendChild(im); }
 }
 function hideSplash() { var s = $('splash'); s.style.opacity = 0; setTimeout(function () { s.style.display = 'none'; clearInterval(growAnim.t); }, 550); }
 window.addEventListener('message', function (e) { if (e.data === 'glowcap-ready') hideSplash(); });
