@@ -68,6 +68,7 @@ html,body,#app,#card{touch-action:manipulation}
   <button class="gold" id="go">Save &amp; open Glowcap</button>
   <p style="font-size:12.5px;color:#94a58a">Then use your browser menu → <b>Install app</b> / <b>Add to Home screen</b>. Long-press the icon for <b>Quick log</b> and <b>Add side quest</b>.</p>
 </div>
+<script src="../glowcap/core.js"></script>
 <script>
 var KEY = 'questAppUrl', CKEY = 'questCache';
 function $(id) { return document.getElementById(id); }
@@ -110,9 +111,23 @@ function fresh() { // cache from another day: same quests, nothing done yet
   if (C && C.day !== today()) { C.day = today(); C.quests.forEach(function (x) { x.value = x.goal > 1 ? 0 : false; }); }
 }
 function save() { ls(CKEY, JSON.stringify(C)); }
+/* talks to the sheet through its small rpc connection; the logic lives in ../glowcap/core.js */
 function api(params) {
-  var u = URL0 + '?' + new URLSearchParams(Object.assign({d: today(), tz: TZ}, params));
-  return fetch(u, {credentials: 'omit', keepalive: true}).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error); return j; });
+  var d = today(), req = {tz: TZ, r: GC.reads(d)};
+  if (params.api === 'quest') req.w = GC.W.quest(d, Number(params.k), params.v === 'true' ? true : params.v === 'false' ? false : Number(params.v) || 0);
+  else if (params.api === 'side') {
+    var used = (C && C.sideRows) || [], row = GC.freeRow(used, GC.QL.SQF, GC.QL.SQN);
+    if (!row) return Promise.reject(new Error('Your side quest list is full'));
+    if (C) { C.sideRows = used.concat([row]); }
+    req.w = GC.W.addSide(row, params.n, params.diff);
+  }
+  var u = URL0 + '?api=rpc&q=' + encodeURIComponent(JSON.stringify(req));
+  return fetch(u, {credentials: 'omit', keepalive: true}).then(function (r) { return r.json(); }).then(function (j) {
+    if (!j.ok) throw new Error(j.error);
+    var s = GC.parse(j, d);
+    return {ok: true, day: d, name: s.name, level: s.level, title: s.title, xp: s.xp, sideOpen: s.side.open.length, sideRows: s.sideRows,
+      quests: s.quests.map(function (q) { return {k: q.k, icon: q.icon, name: q.name, xp: q.xp, goal: q.goal, unit: q.unit, value: q.value}; })};
+  });
 }
 function pump() {
   if (busy || !queue.length) return;
