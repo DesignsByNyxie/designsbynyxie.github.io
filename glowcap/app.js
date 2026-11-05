@@ -106,5 +106,6 @@ function burst(){for(var i=0;i<4;i++)setTimeout(function(){sparks({clientX:inner
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){tab=b.dataset.t;document.querySelectorAll('nav button').forEach(function(x){x.classList.toggle('on',x===b);});if(S)render();scrollTo(0,0);};});
 document.addEventListener('visibilitychange',function(){if(!document.hidden){var t=todayStr();if(day>t)day=t;load();}});
 load();
+  [5000,12000,20000].forEach(function(ms){setTimeout(function(){if(!S)load();},ms);});
 
 })();
