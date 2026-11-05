@@ -103,3 +103,4 @@ body.compact .wrap:before{content:"";display:block;width:44px;height:5px;border-
 .load .grow{position:relative;width:90px;height:140px;margin:0 auto 14px}.load .grow img{position:absolute;left:0;bottom:0;width:90px;opacity:0;animation:fr 2.52s infinite steps(1)}
 @keyframes fr{0%{opacity:1}16.66%{opacity:0}100%{opacity:0}}
 html,body,button,.q,.item,nav{touch-action:manipulation}
+body::after{content:"Glowcap v1.0.1 ✦";display:block;text-align:center;font:600 12px Nunito,sans-serif;color:#94a58a;padding:8px 0 16px}
