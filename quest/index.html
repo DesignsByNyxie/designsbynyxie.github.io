@@ -89,7 +89,7 @@ var URL0 = ls(KEY) || '', VIEW = q.get('view') || '';
 function openFull() {
   $('card').style.display = $('dim').style.display = 'none';
   $('splash').style.display = 'flex'; $('splash').style.opacity = 1;
-  var f = $('app'); f.src = URL0; f.style.display = 'block';
+    location.replace('app.html' + (VIEW ? '?view=' + VIEW : '')); return;
   growAnim(); clearTimeout(openFull.t); openFull.t = setTimeout(hideSplash, 6000); f.onload = function () { setTimeout(hideSplash, 1500); }; ; // safety net
   if (VIEW) history.replaceState(null, '', location.pathname);
 }
