@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1611"><link rel="manifest" href="manifest.json"><title>Glowcap</title>
+<link rel="stylesheet" href="../glowcap/app.css">
+</head><body>
+<script>
+(function () {
+  var u = null; try { u = localStorage.getItem('questAppUrl'); } catch (e) {}
+  if (!u) { location.replace('./'); return; }
+  var q = new URLSearchParams(location.search);
+  window.GC_VIEW = (q.get('view') || '').replace(/[^a-z]/g, ''); window.GC_KERNEL = 1;
+  function call(req, ok, fail) {
+    fetch(u + '?api=rpc&q=' + encodeURIComponent(JSON.stringify(req)), {credentials: 'omit', cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.ok === false) fail(new Error(j.error)); else ok(j); })
+      .catch(function (e) { fail(e); });
+  }
+  window.google = {script: {run: {withSuccessHandler: function (ok) { return {withFailureHandler: function (fail) { return {rpc: function (req) { call(req, ok, fail); }}; }}; }}}};
+})();
+</script>
+<script src="../glowcap/core.js"></script>
+<script src="../glowcap/app.js"></script>
+</body></html>
