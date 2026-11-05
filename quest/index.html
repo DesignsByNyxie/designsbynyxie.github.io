@@ -99,7 +99,7 @@ function growAnim() {
   var g = $('grow');
   if (!g.children.length) for (var i = 0; i < 6; i++) { var im = document.createElement('img'); im.src = '../art/grow' + i + '.png'; im.alt = ''; im.style.animationDelay = (i * 0.42) + 's'; g.appendChild(im); }
 }
-function hideSplash() { var s = $('splash'); s.style.opacity = 0; setTimeout(function () { s.style.display = 'none'; clearInterval(growAnim.t); }, 550); }
+function hideSplash() { var s = $('splash'); s.style.display = 'none'; clearInterval(growAnim.t); } var nudgeN = 0, nudgeT = setInterval(function () { var f = $('app'); if (!f) return; f.style.transform = (nudgeN++ % 2) ? 'translateZ(0)' : 'none'; if (nudgeN > 60) { clearInterval(nudgeT); f.style.transform = ''; } }, 400);
 window.addEventListener('message', function (e) { if (e.data === 'glowcap-ready') hideSplash(); });
 
 /* ---------- instant cards ---------- */
